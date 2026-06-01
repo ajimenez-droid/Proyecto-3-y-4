@@ -1,0 +1,544 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+  <title>Hexapodo</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      --bg: #101418;
+      --panel: #1b2229;
+      --button: #27323b;
+      --button-active: #3f8cff;
+      --danger: #d94f4f;
+      --text: #eef4f8;
+      --muted: #91a0aa;
+      --line: #33404b;
+      --screen: #0b1115;
+      --accent: #55d6be;
+    }
+
+    * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      background: radial-gradient(circle at 50% 14%, #283741 0, var(--bg) 44%);
+      color: var(--text);
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 16px;
+    }
+
+    main {
+      width: min(860px, 100%);
+      display: grid;
+      gap: 14px;
+    }
+
+    header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+    }
+
+    h1 {
+      margin: 0;
+      font-size: 24px;
+      font-weight: 750;
+      letter-spacing: 0;
+    }
+
+    #state {
+      color: var(--muted);
+      font-size: 14px;
+      text-align: right;
+      min-width: 92px;
+    }
+
+    .connection {
+      display: grid;
+      grid-template-columns: 1fr auto;
+      gap: 10px;
+    }
+
+    input {
+      min-width: 0;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: var(--panel);
+      color: var(--text);
+      font: inherit;
+      padding: 0 12px;
+      min-height: 48px;
+    }
+
+    .remote {
+      display: grid;
+      grid-template-columns: 1fr minmax(230px, 300px) 1fr;
+      gap: 18px;
+      align-items: center;
+      min-height: 330px;
+      padding: 22px;
+      border: 1px solid #2f3d47;
+      border-radius: 42px;
+      background: linear-gradient(145deg, #27323a 0%, #161d23 56%, #10161b 100%);
+      box-shadow: inset 0 1px 0 rgba(255,255,255,0.08), 0 22px 60px rgba(0,0,0,0.35);
+    }
+
+    .remote-side {
+      display: grid;
+      gap: 16px;
+      min-height: 250px;
+      align-content: center;
+      padding: 18px;
+      border-radius: 34px;
+      background: linear-gradient(180deg, #202a32, #11171c);
+    }
+
+    .dpad {
+      grid-template-columns: repeat(3, minmax(58px, 1fr));
+      grid-template-rows: repeat(3, 74px);
+      align-content: center;
+    }
+
+    .dpad button {
+      font-size: 0;
+      position: relative;
+    }
+
+    .dpad .up { grid-column: 2; grid-row: 1; }
+    .dpad .left { grid-column: 1; grid-row: 2; }
+    .dpad .right { grid-column: 3; grid-row: 2; }
+    .dpad .down { grid-column: 2; grid-row: 3; }
+
+    .arrow {
+      display: block;
+      width: 0;
+      height: 0;
+      margin: auto;
+      border-left: 15px solid transparent;
+      border-right: 15px solid transparent;
+      border-bottom: 24px solid var(--text);
+    }
+
+    .arrow.down { transform: rotate(180deg); }
+    .arrow.left { transform: rotate(-90deg); }
+    .arrow.right { transform: rotate(90deg); }
+
+    .turn-pad {
+      grid-template-columns: 1fr 1fr;
+      align-content: center;
+    }
+
+    .turn-pad button {
+      display: grid;
+      place-items: center;
+      min-height: 150px;
+    }
+
+    .turn-icon {
+      position: relative;
+      width: 82px;
+      height: 82px;
+      border: 8px solid var(--text);
+      border-bottom-color: transparent;
+      border-radius: 50%;
+    }
+
+    .turn-icon::after {
+      content: "";
+      position: absolute;
+      top: 48px;
+      border-top: 11px solid transparent;
+      border-bottom: 11px solid transparent;
+    }
+
+    .turn-icon.left { transform: rotate(-38deg); }
+
+    .turn-icon.left::after {
+      left: -14px;
+      border-right: 18px solid var(--text);
+    }
+
+    .turn-icon.right { transform: scaleX(-1) rotate(-38deg); }
+
+    .turn-icon.right::after {
+      left: -14px;
+      border-right: 18px solid var(--text);
+    }
+
+    .remote-center {
+      display: grid;
+      gap: 12px;
+      align-items: center;
+    }
+
+    .screen {
+      min-height: 250px;
+      border: 1px solid #273a43;
+      border-radius: 18px;
+      background: linear-gradient(180deg, rgba(85,216,190,0.08), transparent 36%), var(--screen);
+      padding: 16px;
+      display: grid;
+      gap: 12px;
+      box-shadow: inset 0 0 28px rgba(0,0,0,0.55);
+    }
+
+    .screen-title {
+      display: flex;
+      justify-content: space-between;
+      color: var(--accent);
+      font-size: 13px;
+      font-weight: 800;
+    }
+
+    .metric {
+      display: grid;
+      grid-template-columns: 1fr auto;
+      gap: 10px;
+      align-items: baseline;
+      color: var(--muted);
+      font-size: 13px;
+    }
+
+    .metric strong {
+      color: var(--text);
+      font-size: 22px;
+      font-weight: 800;
+      text-align: right;
+    }
+
+    .stop-row {
+      display: flex;
+      justify-content: center;
+    }
+
+    button {
+      min-height: 68px;
+      border: 0;
+      border-radius: 8px;
+      background: var(--button);
+      color: var(--text);
+      font-size: 21px;
+      font-weight: 750;
+      touch-action: manipulation;
+      user-select: none;
+    }
+
+    .remote button {
+      min-height: 0;
+      border-radius: 20px;
+      font-size: 24px;
+      box-shadow: inset 0 1px 0 rgba(255,255,255,0.08), 0 10px 22px rgba(0,0,0,0.25);
+    }
+
+    .remote .dpad button {
+      min-height: 0;
+    }
+
+    .remote .turn-pad button {
+      min-height: 150px;
+    }
+
+    button:active,
+    button.active { background: var(--button-active); }
+
+    button.stop {
+      width: 112px;
+      min-height: 52px;
+      border-radius: 999px;
+      background: var(--danger);
+      font-size: 16px;
+    }
+
+    .small {
+      min-height: 52px;
+      font-size: 16px;
+      font-weight: 700;
+    }
+
+    .readout {
+      min-height: 76px;
+      background: var(--panel);
+      border-radius: 8px;
+      padding: 12px;
+      color: var(--muted);
+      font-size: 14px;
+      line-height: 1.45;
+      white-space: pre-wrap;
+    }
+
+    @media (max-width: 560px) {
+      main { width: min(460px, 100%); }
+
+      .remote {
+        grid-template-columns: 1fr;
+        gap: 12px;
+        min-height: 0;
+        padding: 14px;
+        border-radius: 28px;
+      }
+
+      .remote-center { order: -1; }
+
+      .remote-side {
+        min-height: 0;
+        grid-template-columns: 1fr 1fr;
+        padding: 12px;
+      }
+
+      .dpad {
+        grid-template-columns: repeat(3, 1fr);
+        grid-template-rows: repeat(3, 64px);
+      }
+
+      .turn-pad button { min-height: 96px; }
+
+      .turn-icon {
+        width: 58px;
+        height: 58px;
+        border-width: 7px;
+      }
+
+      .remote button {
+        min-height: 82px;
+        font-size: 19px;
+      }
+
+      .remote .dpad button {
+        min-height: 0;
+      }
+
+      .remote .turn-pad button {
+        min-height: 96px;
+      }
+
+      button.stop {
+        width: 100%;
+        min-height: 50px;
+        font-size: 14px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <main>
+    <header>
+      <h1>Hexapodo</h1>
+      <div id="state">Listo</div>
+    </header>
+
+    <section class="connection" aria-label="Conexion">
+      <input id="espIp" autocomplete="off" inputmode="decimal" placeholder="IP del ESP32">
+      <button class="small" id="saveIp" type="button">OK</button>
+    </section>
+
+    <section class="remote" aria-label="Control principal">
+      <div class="remote-side dpad" aria-label="Movimiento">
+        <button class="up" data-cmd="F" aria-label="Adelante">
+          <span class="arrow"></span>
+        </button>
+        <button class="left" data-cmd="L" aria-label="Izquierda">
+          <span class="arrow left"></span>
+        </button>
+        <button class="right" data-cmd="R" aria-label="Derecha">
+          <span class="arrow right"></span>
+        </button>
+        <button class="down" data-cmd="B" aria-label="Atras">
+          <span class="arrow down"></span>
+        </button>
+      </div>
+
+      <div class="remote-center">
+        <div class="screen" aria-label="Pantalla de estado">
+          <div class="screen-title">
+            <span>HEXAPODO</span>
+            <span id="linkState">OFFLINE</span>
+          </div>
+          <div class="metric">
+            <span>Consumo</span>
+            <strong id="energyValue">N/D</strong>
+          </div>
+          <div class="metric">
+            <span>Bateria</span>
+            <strong id="batteryValue">N/D</strong>
+          </div>
+          <div class="metric">
+            <span>Distancia centro</span>
+            <strong id="centerDistance">N/D</strong>
+          </div>
+          <div class="metric">
+            <span>Acelerometro X</span>
+            <strong id="accelXValue">N/D</strong>
+          </div>
+          <div class="metric">
+            <span>Acelerometro Y</span>
+            <strong id="accelYValue">N/D</strong>
+          </div>
+          <div class="metric">
+            <span>Acelerometro Z</span>
+            <strong id="accelZValue">N/D</strong>
+          </div>
+        </div>
+
+        <div class="stop-row">
+          <button class="stop" data-cmd="STAND">STOP</button>
+        </div>
+      </div>
+
+      <div class="remote-side turn-pad" aria-label="Giro">
+        <button data-cmd="TL" aria-label="Giro izquierda">
+          <span class="turn-icon left"></span>
+        </button>
+        <button data-cmd="TR" aria-label="Giro derecha">
+          <span class="turn-icon right"></span>
+        </button>
+      </div>
+    </section>
+
+    <div id="readout" class="readout">Carga la IP que muestra el monitor serial del ESP32.</div>
+  </main>
+
+  <script>
+    const state = document.getElementById('state');
+    const readout = document.getElementById('readout');
+    const espIp = document.getElementById('espIp');
+    const saveIp = document.getElementById('saveIp');
+    const linkState = document.getElementById('linkState');
+    const energyValue = document.getElementById('energyValue');
+    const batteryValue = document.getElementById('batteryValue');
+    const centerDistance = document.getElementById('centerDistance');
+    const accelXValue = document.getElementById('accelXValue');
+    const accelYValue = document.getElementById('accelYValue');
+    const accelZValue = document.getElementById('accelZValue');
+
+    espIp.value = localStorage.getItem('hexapodEspIp') || '';
+
+    function baseUrl() {
+      let ip = espIp.value.trim().replace(/^https?:\/\//, '').replace(/\/$/, '');
+      ip = ip.split('/')[0];
+      ip = ip.split(':')[0];
+      return ip ? 'http://' + ip : '';
+    }
+
+    function saveCurrentIp() {
+      const ip = espIp.value.trim().replace(/^https?:\/\//, '').split('/')[0].split(':')[0];
+      espIp.value = ip;
+      localStorage.setItem('hexapodEspIp', ip);
+      readout.textContent = 'IP guardada: ' + ip;
+    }
+
+    function matchValue(text, name) {
+      const found = text.match(new RegExp(name + '=([^\\s]+)', 'i'));
+      return found ? found[1] : '';
+    }
+
+    function updateScreen(text) {
+      if (text.startsWith('SONAR')) {
+        const center = matchValue(text, 'C') || matchValue(text, 'D');
+        centerDistance.textContent = center && center !== '-1.0' ? center + ' cm' : 'N/D';
+      }
+
+      if (text.startsWith('STATUS')) {
+        const battery = matchValue(text, 'battery');
+        const energy = matchValue(text, 'energy');
+        const dist = matchValue(text, 'dist');
+        const ax = matchValue(text, 'ax');
+        const ay = matchValue(text, 'ay');
+        const az = matchValue(text, 'az');
+        batteryValue.textContent = battery || 'N/D';
+        energyValue.textContent = energy || 'N/D';
+        if (dist) centerDistance.textContent = dist !== '-1.0' ? dist + ' cm' : 'N/D';
+        accelXValue.textContent = ax ? ax + ' g' : 'N/D';
+        accelYValue.textContent = ay ? ay + ' g' : 'N/D';
+        accelZValue.textContent = az ? az + ' g' : 'N/D';
+      }
+    }
+
+    async function sendCommand(cmd, button, silent = false, keepActive = false) {
+      const url = baseUrl();
+      if (!url) {
+        if (!silent) readout.textContent = 'Falta la IP del ESP32.';
+        espIp.focus();
+        return;
+      }
+
+      if (!silent) state.textContent = cmd;
+      if (button) button.classList.add('active');
+
+      try {
+        const res = await fetch(url + '/cmd?c=' + encodeURIComponent(cmd), { cache: 'no-store' });
+        const text = await res.text();
+        if (!silent) {
+          readout.textContent = text || ('OK ' + cmd);
+          state.textContent = res.ok ? 'OK' : 'Error';
+        }
+        linkState.textContent = res.ok ? 'ONLINE' : 'ERROR';
+        updateScreen(text);
+      } catch (err) {
+        if (!silent) {
+          readout.textContent = 'Sin conexion con el ESP32 en ' + url;
+          state.textContent = 'Error';
+        }
+        linkState.textContent = 'OFFLINE';
+      } finally {
+        if (button && !keepActive) setTimeout(() => button.classList.remove('active'), 120);
+      }
+    }
+
+    function refreshTelemetry() {
+      if (!baseUrl()) return;
+      sendCommand('SONAR', null, true);
+      setTimeout(() => sendCommand('STATUS', null, true), 250);
+    }
+
+    saveIp.addEventListener('click', saveCurrentIp);
+    espIp.addEventListener('keydown', (event) => {
+      if (event.key === 'Enter') saveCurrentIp();
+    });
+
+    function bindHoldButton(button) {
+      let repeatTimer = 0;
+
+      function stopRepeat() {
+        clearInterval(repeatTimer);
+        repeatTimer = 0;
+        button.classList.remove('active');
+      }
+
+      button.addEventListener('pointerdown', (event) => {
+        event.preventDefault();
+        if (repeatTimer) return;
+
+        button.setPointerCapture(event.pointerId);
+        button.classList.add('active');
+        sendCommand(button.dataset.cmd, button, false, true);
+
+        repeatTimer = setInterval(() => {
+          sendCommand(button.dataset.cmd, button, false, true);
+        }, 260);
+      });
+
+      button.addEventListener('pointerup', stopRepeat);
+      button.addEventListener('pointercancel', stopRepeat);
+      button.addEventListener('lostpointercapture', stopRepeat);
+      button.addEventListener('contextmenu', (event) => event.preventDefault());
+    }
+
+    document.querySelectorAll('.remote button[data-cmd]:not(.stop)').forEach(bindHoldButton);
+
+    document.querySelectorAll('button[data-cmd]').forEach((button) => {
+      if (button.closest('.remote') && !button.classList.contains('stop')) return;
+      button.addEventListener('click', () => sendCommand(button.dataset.cmd, button));
+    });
+
+    setInterval(refreshTelemetry, 3000);
+    setTimeout(refreshTelemetry, 400);
+  </script>
+</body>
+</html>
