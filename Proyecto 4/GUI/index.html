@@ -12,6 +12,7 @@
       --button: #27323b;
       --button-active: #3f8cff;
       --danger: #d94f4f;
+      --warning: #fdb022;
       --text: #eef4f8;
       --muted: #91a0aa;
       --line: #33404b;
@@ -213,6 +214,77 @@
       text-align: right;
     }
 
+    .tilt-card {
+      display: grid;
+      gap: 8px;
+      padding-top: 4px;
+    }
+
+    .tilt-row {
+      display: flex;
+      justify-content: space-between;
+      gap: 10px;
+      color: var(--muted);
+      font-size: 13px;
+    }
+
+    .tilt-row strong {
+      color: var(--text);
+      font-size: 16px;
+    }
+
+    .tilt-bar {
+      height: 14px;
+      background: #27323b;
+      border-radius: 999px;
+      overflow: hidden;
+      border: 1px solid var(--line);
+    }
+
+    .tilt-bar span {
+      display: block;
+      height: 100%;
+      width: 0;
+      background: var(--warning);
+      transition: width 140ms ease;
+    }
+
+    .horizon {
+      position: relative;
+      height: 72px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: linear-gradient(180deg, #1d3542 0 50%, #332c22 50% 100%);
+      overflow: hidden;
+    }
+
+    .horizon span {
+      position: absolute;
+      left: 50%;
+      top: 50%;
+      width: 150px;
+      height: 4px;
+      background: var(--accent);
+      transform: translate(-50%, -50%) rotate(0deg);
+      transform-origin: center;
+      transition: transform 140ms ease;
+    }
+
+    .stuck-alert {
+      padding: 9px 10px;
+      border-radius: 8px;
+      background: #25313a;
+      color: var(--muted);
+      font-size: 13px;
+      font-weight: 800;
+      text-align: center;
+    }
+
+    .stuck-alert.bad {
+      background: var(--danger);
+      color: white;
+    }
+
     .stop-row {
       display: flex;
       justify-content: center;
@@ -384,6 +456,15 @@
             <span>Acelerometro Z</span>
             <strong id="accelZValue">N/D</strong>
           </div>
+          <div class="tilt-card">
+            <div class="tilt-row">
+              <span>Inclinacion</span>
+              <strong id="tiltValue">N/D</strong>
+            </div>
+            <div class="tilt-bar"><span id="tiltBar"></span></div>
+            <div class="horizon"><span id="horizonLine"></span></div>
+            <div class="stuck-alert" id="stuckAlert">Movimiento normal</div>
+          </div>
         </div>
 
         <div class="stop-row">
@@ -416,21 +497,42 @@
     const accelXValue = document.getElementById('accelXValue');
     const accelYValue = document.getElementById('accelYValue');
     const accelZValue = document.getElementById('accelZValue');
+    const tiltValue = document.getElementById('tiltValue');
+    const tiltBar = document.getElementById('tiltBar');
+    const horizonLine = document.getElementById('horizonLine');
+    const stuckAlert = document.getElementById('stuckAlert');
 
-    espIp.value = localStorage.getItem('hexapodEspIp') || '';
+    function storageGet(key) {
+      try { return localStorage.getItem(key) || ''; }
+      catch (err) { return ''; }
+    }
+
+    function storageSet(key, value) {
+      try { localStorage.setItem(key, value); }
+      catch (err) {}
+    }
+
+    espIp.value = storageGet('hexapodEspIp');
+    if (!espIp.value && location.protocol.startsWith('http') && location.hostname) {
+      espIp.value = location.hostname;
+    }
 
     function baseUrl() {
       let ip = espIp.value.trim().replace(/^https?:\/\//, '').replace(/\/$/, '');
       ip = ip.split('/')[0];
       ip = ip.split(':')[0];
+      if (!ip && location.protocol.startsWith('http') && location.hostname) {
+        ip = location.hostname;
+      }
       return ip ? 'http://' + ip : '';
     }
 
     function saveCurrentIp() {
       const ip = espIp.value.trim().replace(/^https?:\/\//, '').split('/')[0].split(':')[0];
       espIp.value = ip;
-      localStorage.setItem('hexapodEspIp', ip);
-      readout.textContent = 'IP guardada: ' + ip;
+      storageSet('hexapodEspIp', ip);
+      readout.textContent = 'Probando conexion con ' + ip + '...';
+      setTimeout(() => sendCommand('STATUS', null, false), 50);
     }
 
     function matchValue(text, name) {
@@ -451,12 +553,25 @@
         const ax = matchValue(text, 'ax');
         const ay = matchValue(text, 'ay');
         const az = matchValue(text, 'az');
+        const roll = matchValue(text, 'roll');
+        const pitch = matchValue(text, 'pitch');
+        const tilt = matchValue(text, 'tilt');
+        const tiltPct = matchValue(text, 'tiltPct');
+        const stuck = matchValue(text, 'stuck');
         batteryValue.textContent = battery || 'N/D';
         energyValue.textContent = energy || 'N/D';
         if (dist) centerDistance.textContent = dist !== '-1.0' ? dist + ' cm' : 'N/D';
         accelXValue.textContent = ax ? ax + ' g' : 'N/D';
         accelYValue.textContent = ay ? ay + ' g' : 'N/D';
         accelZValue.textContent = az ? az + ' g' : 'N/D';
+
+        const tiltPercent = parseInt(tiltPct, 10);
+        const rollNumber = parseFloat(roll);
+        tiltValue.textContent = tilt ? `${tilt} deg (${tiltPct || '0%'})` : 'N/D';
+        tiltBar.style.width = (Number.isFinite(tiltPercent) ? tiltPercent : 0) + '%';
+        horizonLine.style.transform = `translate(-50%, -50%) rotate(${Number.isFinite(rollNumber) ? rollNumber : 0}deg)`;
+        stuckAlert.textContent = stuck === 'SI' ? 'ALERTA: POSIBLE TRABADO' : 'Movimiento normal';
+        stuckAlert.className = stuck === 'SI' ? 'stuck-alert bad' : 'stuck-alert';
       }
     }
 
@@ -497,36 +612,76 @@
       setTimeout(() => sendCommand('STATUS', null, true), 250);
     }
 
-    saveIp.addEventListener('click', saveCurrentIp);
+    function bindTap(element, action) {
+      let touched = false;
+
+      element.addEventListener('touchend', (event) => {
+        event.preventDefault();
+        touched = true;
+        action();
+        setTimeout(() => { touched = false; }, 350);
+      }, { passive: false });
+
+      element.addEventListener('click', (event) => {
+        if (touched) return;
+        event.preventDefault();
+        action();
+      });
+    }
+
+    bindTap(saveIp, saveCurrentIp);
     espIp.addEventListener('keydown', (event) => {
       if (event.key === 'Enter') saveCurrentIp();
     });
+    espIp.addEventListener('change', saveCurrentIp);
 
     function bindHoldButton(button) {
       let repeatTimer = 0;
+      let holding = false;
 
       function stopRepeat() {
         clearInterval(repeatTimer);
         repeatTimer = 0;
+        holding = false;
         button.classList.remove('active');
       }
 
-      button.addEventListener('pointerdown', (event) => {
+      function startRepeat(event) {
         event.preventDefault();
-        if (repeatTimer) return;
+        if (holding) return;
 
-        button.setPointerCapture(event.pointerId);
+        holding = true;
         button.classList.add('active');
         sendCommand(button.dataset.cmd, button, false, true);
 
         repeatTimer = setInterval(() => {
           sendCommand(button.dataset.cmd, button, false, true);
         }, 260);
-      });
+      }
 
-      button.addEventListener('pointerup', stopRepeat);
-      button.addEventListener('pointercancel', stopRepeat);
-      button.addEventListener('lostpointercapture', stopRepeat);
+      if (window.PointerEvent) {
+        button.addEventListener('pointerdown', (event) => {
+          if (button.setPointerCapture && event.pointerId !== undefined) {
+            try { button.setPointerCapture(event.pointerId); }
+            catch (err) {}
+          }
+          startRepeat(event);
+        });
+        button.addEventListener('pointerup', stopRepeat);
+        button.addEventListener('pointercancel', stopRepeat);
+        button.addEventListener('lostpointercapture', stopRepeat);
+      } else {
+        button.addEventListener('touchstart', startRepeat, { passive: false });
+        button.addEventListener('touchend', stopRepeat);
+        button.addEventListener('touchcancel', stopRepeat);
+        button.addEventListener('mousedown', startRepeat);
+        button.addEventListener('mouseup', stopRepeat);
+        button.addEventListener('mouseleave', stopRepeat);
+      }
+
+      window.addEventListener('touchend', stopRepeat);
+      window.addEventListener('touchcancel', stopRepeat);
+      window.addEventListener('mouseup', stopRepeat);
       button.addEventListener('contextmenu', (event) => event.preventDefault());
     }
 
